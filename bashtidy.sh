@@ -1,61 +1,89 @@
 #!/usr/bin/env bash
 # bashtidy.sh
 # https://github.com/bashtidy/bashtidy
+# Ref: https://github.com/tourcoder/larn.zsh-theme
 
 # ---------------------------------------------------------------
-# Colors
+# Colors — use \001\002 inside functions (equivalent to \[\] in PS1)
 # ---------------------------------------------------------------
-_C_CYAN="\[\033[0;36m\]"
-_C_RESET="\[\033[0m\]"
+_BLUE='\[\033[38;5;75m\]'
+_ORANGE='\[\033[38;5;214m\]'
+_YELLOW='\[\033[38;5;226m\]'
+_WHITE='\[\033[38;5;255m\]'
+_GREEN='\[\033[38;5;40m\]'
+_RESET='\[\033[0m\]'
+
+# Same colors wrapped for use inside functions
+_F_BLUE='\001\033[38;5;75m\002'
+_F_ORANGE='\001\033[38;5;214m\002'
+_F_YELLOW='\001\033[38;5;226m\002'
+_F_GREEN='\001\033[38;5;40m\002'
+_F_RESET='\001\033[0m\002'
 
 # ---------------------------------------------------------------
-# Prompt: working directory + git branch + status
+# Git helpers
 # ---------------------------------------------------------------
-_git_prompt() {
-    local branch
-    branch=$(git symbolic-ref --short HEAD 2>/dev/null) || return
-
-    local state=""
-
-    # Untracked files
-    git ls-files --others --exclude-standard --quiet --error-unmatch . 2>/dev/null \
-        && state="${state}?"
-
-    # Unstaged changes
-    git diff --quiet 2>/dev/null || state="${state}!"
-
-    # Staged but uncommitted
-    git diff --cached --quiet 2>/dev/null || state="${state}+"
-
-    # Commits ahead of upstream
-    local ahead
-    ahead=$(git rev-list @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')
-    [ "$ahead" -gt 0 ] 2>/dev/null && state="${state}↑${ahead}"
-
-    # Color: green = clean, yellow = dirty, red = conflict
-    local color
-    if [ -z "$state" ]; then
-        color="\[\033[0;32m\]"
-    else
-        color="\[\033[0;33m\]"
-    fi
-
-    git diff --name-only --diff-filter=U 2>/dev/null | grep -q . \
-        && color="\[\033[0;31m\]"
-
-    [ -n "$state" ] && state=" ${state}"
-    echo -e " ${color}(${branch}${state})\[\033[0m\]"
+_parse_git_branch() {
+    git symbolic-ref --short HEAD 2>/dev/null
 }
 
-PS1="${_C_CYAN}\w${_C_RESET}\$(_git_prompt) → "
+_parse_git_status() {
+    git rev-parse --is-inside-work-tree &>/dev/null || return
+    local changes
+    changes=$(git status --porcelain 2>/dev/null)
+    local state=""
+    [[ "$changes" == *M* || "$changes" == *A* || "$changes" == *D* ]] && state+="*"
+    [[ "$changes" == *\?* ]] && state+="+"
+    [[ "$changes" == *U* ]] && state+="!"
+    echo "$state"
+}
+
+_get_branch_color() {
+    local branch
+    branch=$(_parse_git_branch)
+    case "$branch" in
+        main|master) echo "$_F_GREEN"  ;;
+        dev)         echo "$_F_YELLOW" ;;
+        feature-*)   echo "$_F_BLUE"   ;;
+        *)           echo "$_F_ORANGE" ;;
+    esac
+}
+
+_is_git_repo() {
+    git rev-parse --is-inside-work-tree &>/dev/null
+}
+
+# ---------------------------------------------------------------
+# Prompt
+# ---------------------------------------------------------------
+_set_prompt() {
+    if _is_git_repo; then
+        local branch color status
+        branch=$(_parse_git_branch)
+        color=$(_get_branch_color)
+        status=$(_parse_git_status)
+        PS1="${_BLUE}[\w${_WHITE} :: ${_RESET}${color}${branch}${_F_YELLOW}${status}${_BLUE}] ${_BLUE}➜ ${_RESET}"
+    else
+        PS1="${_BLUE}[\w] ${_BLUE}➜ ${_RESET}"
+    fi
+}
+
+PROMPT_COMMAND="_set_prompt"
 
 # ---------------------------------------------------------------
 # ls
 # ---------------------------------------------------------------
-alias ls='ls --color=auto'
-alias ll='ls -lh --color=auto'
-alias la='ls -lAh --color=auto'
-alias l='ls -CF --color=auto'
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    export CLICOLOR=1
+    export LSCOLORS="ExFxCxDxBxegedabagacad"
+    alias ls='ls -G'
+else
+    export LS_COLORS='di=1;34:ln=36:so=32:pi=33:ex=31:bd=34;46:cd=34;43:su=30;41:sg=30;46:tw=30;42:ow=30;43:fi=0'
+    alias ls='ls --color=auto'
+fi
+alias ll='ls -lh'
+alias la='ls -lAh'
+alias l='ls -CF'
 
 # ---------------------------------------------------------------
 # grep / diff
