@@ -1,6 +1,6 @@
 # bashtidy
 
-A lightweight bash configuration for development containers — git prompt, aliases, and color, nothing more.
+A lightweight shell configuration framework for bash — git prompt, aliases, color, and more.
 
 ## Install
 
