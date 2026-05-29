@@ -181,3 +181,24 @@ HISTCONTROL=ignoredups:erasedups
 HISTTIMEFORMAT="%F %T "
 shopt -s histappend
 shopt -s checkwinsize
+
+# history prefix search: type partial command, use up/down to filter
+bind '"\e[A": history-search-backward' 2>/dev/null
+bind '"\e[B": history-search-forward'  2>/dev/null
+
+# ---------------------------------------------------------------
+# bashtidy command
+# ---------------------------------------------------------------
+bashtidy() {
+    echo ""
+    echo "bashtidy — A lightweight shell configuration framework for bash"
+    echo "https://github.com/bashtidy/bashtidy"
+    echo ""
+    echo "Aliases:"
+    echo ""
+    grep "^alias" /etc/bashtidy.sh 2>/dev/null \
+      | sed "s/^alias //" \
+      | sed "s/['\"]$//" \
+      | awk -F"=['\"]" '{printf "  %-12s →  %s\n", $1, $2}'
+    echo ""
+}
